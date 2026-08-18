@@ -1,0 +1,38 @@
+name: Build i publikacja obrazu
+
+# Tylko budowanie i publikacja do GHCR -- ten workflow NIE ma zadnego
+# dostepu do VPS-a (brak sekretow SSH). Faktyczny deploy (pull + recreate
+# kontenera) odpala sie z repo `infra`, ktore zna topologie serwera.
+# Podzial celowy: to repo jest publiczne (statyczny frontend, zero
+# sekretow), `infra` zostaje prywatne i jedynym miejscem z dostepem do VPS.
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # GITHUB_TOKEN wystarcza -- pakiet dziedziczy uprawnienia repo,
+          # zaden dodatkowy sekret nie jest potrzebny.
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build i push (latest + sha)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:sha-${{ github.sha }}

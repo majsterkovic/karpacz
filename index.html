@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Pogoda na szlaku — Karpacz ↔ Szklarska Poręba</title>
+  <meta name="description" content="Uśredniona pogoda z 6 modeli i oficjalnych stacji IMGW dla 9 punktów na grzbiecie Karkonoszy, Karpacz–Szklarska Poręba." />
+  <meta name="theme-color" content="#12161a" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⛰️</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <p class="eyebrow">Grzbiet Karkonoszy · szlak czerwony</p>
+    <h1>Karpacz <span aria-hidden="true">→</span> Szklarska Poręba</h1>
+    <p class="sub">Pogoda uśredniona z 6 niezależnych modeli, skorygowana o wysokość każdego punktu.</p>
+  </header>
+
+  <section class="stations-wrap" aria-labelledby="stations-h">
+    <h2 id="stations-h">Teraz, oficjalnie (IMGW)</h2>
+    <div id="stations" class="stations">Wczytuję odczyty stacji…</div>
+  </section>
+
+  <nav class="profile-wrap" aria-labelledby="profile-h">
+    <h2 id="profile-h" class="sr-only">Profil wysokościowy szlaku</h2>
+    <div id="profile" class="profile"></div>
+  </nav>
+
+  <section class="days-wrap" aria-labelledby="days-h">
+    <h2 id="days-h" class="sr-only">Wybór dnia</h2>
+    <div id="dayTabs" class="daytabs"></div>
+    <p class="days-note">Dane dla godzin 8:00–20:00 (pora wyjść na szlak)</p>
+  </section>
+
+  <p id="status" class="status" role="status" aria-live="polite"></p>
+
+  <main id="checkpoints" class="checkpoints"></main>
+
+  <footer class="footer">
+    <p id="updated"></p>
+    <p>Źródła: <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a>
+      (ICON/DWD, ECMWF, GFS/NOAA, Météo-France, UKMO, JMA) ·
+      <a href="https://danepubliczne.imgw.pl" target="_blank" rel="noopener">IMGW-PIB</a>.
+      Rozrzut modeli = różnica maks.–min. temperatury w danym dniu; im mniejszy, tym pewniejsza prognoza.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

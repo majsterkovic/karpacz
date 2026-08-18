@@ -1,0 +1,336 @@
+/* Pogoda na szlaku — Karpacz ↔ Szklarska Poręba
+   Paleta: grafit górski + ceglasta czerwień (kolor znaków PTTK tego szlaku).
+   Fraunces = rzeźbione liczby (jak wyryte na kamieniu szczytowym),
+   IBM Plex Mono = odczyt danych (jak ze stacji pomiarowej), Inter = reszta. */
+
+:root {
+  --bg: #12161a;
+  --surface: #1b2126;
+  --surface-2: #222a30;
+  --ink: #eef2f1;
+  --muted: #8fa0a8;
+  --line: #2a333a;
+  --trail: #c1442a;
+  --cold: #6fb3d9;
+  --good: #6fa87c;
+  --warn: #d1a54a;
+  --bad: #c1442a;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-body: "Inter", system-ui, sans-serif;
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  line-height: 1.45;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+a { color: var(--cold); }
+
+:focus-visible {
+  outline: 2px solid var(--trail);
+  outline-offset: 2px;
+}
+
+/* ── Topbar ─────────────────────────────────────────────────────────── */
+.topbar {
+  padding: 28px 20px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.eyebrow {
+  margin: 0 0 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--trail);
+}
+.topbar h1 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(28px, 8vw, 40px);
+  letter-spacing: -0.01em;
+}
+.sub {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  max-width: 46ch;
+}
+
+/* ── Stacje IMGW ────────────────────────────────────────────────────── */
+.stations-wrap { padding: 16px 20px 4px; }
+.stations-wrap h2 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+.stations {
+  display: grid;
+  gap: 8px;
+}
+.station {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  align-items: center;
+}
+.station-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+.station-name small {
+  display: block;
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+.station-read {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+  justify-self: end;
+}
+.station-read b {
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--cold);
+  font-weight: 700;
+}
+.station-time {
+  grid-column: 1 / -1;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  opacity: 0.7;
+}
+.station--err .station-err {
+  color: var(--warn);
+  font-size: 12px;
+  justify-self: end;
+}
+
+/* ── Profil wysokościowy ────────────────────────────────────────────── */
+.profile-wrap {
+  padding: 20px 12px 4px;
+  position: sticky;
+  top: 0;
+  background: linear-gradient(var(--bg) 82%, transparent);
+  z-index: 5;
+}
+.profile svg { width: 100%; height: auto; display: block; overflow: visible; }
+.profile-area {
+  fill: color-mix(in srgb, var(--trail) 10%, transparent);
+}
+.profile-line {
+  fill: none;
+  stroke: var(--trail);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.profile-pt circle:nth-child(2) {
+  fill: var(--bg);
+  stroke: var(--trail);
+  stroke-width: 2;
+}
+.profile-pt { cursor: pointer; }
+.profile-pt:hover circle:nth-child(2),
+.profile-pt:focus-visible circle:nth-child(2) {
+  fill: var(--trail);
+}
+.profile-pt text {
+  fill: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-anchor: middle;
+}
+
+/* ── Wybór dnia ─────────────────────────────────────────────────────── */
+.days-wrap { padding: 10px 16px 0; }
+.daytabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+.daytabs::-webkit-scrollbar { display: none; }
+.daytab {
+  flex: 0 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  cursor: pointer;
+}
+.daytab-dow { text-transform: capitalize; }
+.daytab.is-active {
+  background: var(--trail);
+  border-color: var(--trail);
+  color: var(--ink);
+  font-weight: 500;
+}
+.days-note {
+  margin: 6px 2px 0;
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+/* ── Status ─────────────────────────────────────────────────────────── */
+.status {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 24px 20px;
+  min-height: 1px;
+}
+
+/* ── Punkty kontrolne ───────────────────────────────────────────────── */
+.checkpoints {
+  padding: 12px 16px 8px;
+  display: grid;
+  gap: 12px;
+  max-width: 640px;
+  margin: 0 auto;
+}
+.checkpoint {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  scroll-margin-top: 140px;
+}
+.checkpoint header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.checkpoint h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 19px;
+}
+.cp-ele {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.cp-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.cp-temp {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cp-temp b {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 700;
+}
+.cp-temp span {
+  font-family: var(--font-mono);
+  color: var(--muted);
+  font-size: 13px;
+}
+.cp-temp small {
+  width: 100%;
+  color: var(--muted);
+  font-size: 12px;
+}
+.cp-verdict {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 6px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.verdict--dobre  { background: color-mix(in srgb, var(--good) 22%, transparent); color: var(--good); }
+.verdict--zmienne { background: color-mix(in srgb, var(--warn) 22%, transparent); color: var(--warn); }
+.verdict--trudne { background: color-mix(in srgb, var(--bad) 22%, transparent); color: var(--bad); }
+
+.cp-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 13px;
+  color: var(--ink);
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.cp-stats small { color: var(--muted); }
+.cp-fog {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--warn);
+}
+.cp-spread {
+  margin: 10px 0 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+.cp-spread--wide { color: var(--warn); }
+
+/* ── Stopka ─────────────────────────────────────────────────────────── */
+.footer {
+  padding: 24px 20px 40px;
+  border-top: 1px solid var(--line);
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 12px;
+  max-width: 640px;
+  margin-inline: auto;
+}
+.footer p { margin: 0 0 8px; }
+#updated { font-family: var(--font-mono); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; }
+}
+
+@media (min-width: 720px) {
+  .stations { grid-template-columns: 1fr 1fr; }
+  .checkpoints { gap: 14px; }
+}
