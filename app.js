@@ -24,10 +24,6 @@ const MODELS = [
   "icon_seamless", "ecmwf_ifs025", "gfs_seamless",
   "meteofrance_seamless", "ukmo_seamless", "jma_seamless",
 ];
-const MODEL_LABEL = {
-  icon_seamless: "ICON (DWD)", ecmwf_ifs025: "ECMWF", gfs_seamless: "GFS (NOAA)",
-  meteofrance_seamless: "Météo-France", ukmo_seamless: "UKMO", jma_seamless: "JMA",
-};
 const HOURLY_VARS = [
   "temperature_2m", "apparent_temperature", "dew_point_2m", "precipitation",
   "wind_speed_10m", "wind_gusts_10m", "cloud_cover", "relative_humidity_2m",
@@ -46,15 +42,26 @@ function cloudBaseAboveGround(t, td) {
   return Math.max(0, 125 * (t - td));
 }
 
-function verdict({ windAvg, gustMax, precipSum, fogHours }) {
-  let level = 0; // 0 dobre, 1 zmienne, 2 trudne
-  if (windAvg >= 20 || gustMax >= 50) level = Math.max(level, 1);
-  if (windAvg >= 40 || gustMax >= 70) level = Math.max(level, 2);
-  if (precipSum >= 1) level = Math.max(level, 1);
-  if (precipSum >= 6) level = Math.max(level, 2);
-  if (fogHours >= 1) level = Math.max(level, 1);
-  if (fogHours >= 3) level = Math.max(level, 2);
-  return ["dobre", "zmienne", "trudne"][level];
+// Zamiast abstrakcyjnej etykiety (dawniej "dobre/zmienne/trudne", niejasne
+// bez kontekstu) zwraca KONKRETNY powod: liczbe i jednostke, ktora
+// przekroczyla prog. Poziom (0/1/2) steruje tylko kolorem, tekst zawsze
+// mowi wprost co sie dzieje -- nie trzeba znac skali, zeby to zrozumiec.
+function assess({ windAvg, gustMax, precipSum, fogHours }) {
+  const reasons = [];
+  if (gustMax >= 70) reasons.push({ level: 2, text: `porywy ${round(gustMax)} km/h` });
+  else if (windAvg >= 40) reasons.push({ level: 2, text: `wiatr ${round(windAvg)} km/h` });
+  else if (gustMax >= 50) reasons.push({ level: 1, text: `porywy ${round(gustMax)} km/h` });
+  else if (windAvg >= 20) reasons.push({ level: 1, text: `wiatr ${round(windAvg)} km/h` });
+
+  if (precipSum >= 6) reasons.push({ level: 2, text: `opad ${round(precipSum, 1)} mm` });
+  else if (precipSum >= 1) reasons.push({ level: 1, text: `opad ${round(precipSum, 1)} mm` });
+
+  if (fogHours >= 3) reasons.push({ level: 2, text: `mgła ${round(fogHours, 1)} h` });
+  else if (fogHours >= 1) reasons.push({ level: 1, text: `mgła ${round(fogHours, 1)} h` });
+
+  if (!reasons.length) return { level: 0, label: "Spokojnie", detail: null };
+  const level = Math.max(...reasons.map((r) => r.level));
+  return { level, label: level === 2 ? "Ryzyko" : "Uwaga", detail: reasons.map((r) => r.text).join(" · ") };
 }
 
 async function fetchEnsemble() {
@@ -131,7 +138,7 @@ function buildDays(hourly) {
       rhAvg: round(mean(sample.rh), 0),
       fogHours: round(sample.fogHours, 1),
       spread: modelSpread.length ? round(mean(modelSpread), 1) : null,
-      verdict: verdict({
+      assess: assess({
         windAvg: mean(sample.wind), gustMax: Math.max(...sample.gust),
         precipSum: sample.precip, fogHours: sample.fogHours,
       }),
@@ -140,11 +147,32 @@ function buildDays(hourly) {
   return days.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function spreadLabel(spread) {
-  if (spread == null) return { text: "brak danych", cls: "" };
-  if (spread < 3) return { text: "modele zgodne", cls: "tight" };
-  if (spread < 6) return { text: "modele rozbieżne", cls: "mid" };
-  return { text: "modele mocno rozbieżne", cls: "wide" };
+// Widoczne tylko gdy modele faktycznie się kłócą (>=3°C) — przy zgodnych
+// modelach to nieinformacyjny szum powtórzony na każdej z 9 kart.
+function spreadNote(spread) {
+  if (spread == null || spread < 3) return null;
+  const wide = spread >= 6;
+  return { text: `${wide ? "modele mocno się różnią" : "modele się różnią"} (±${spread}°C)`, cls: wide ? "wide" : "mid" };
+}
+
+function tempColor(t) {
+  if (t == null) return "var(--muted)";
+  return t <= 6 ? "var(--cold)" : "var(--ink)";
+}
+
+const LEVEL_VAR = ["var(--good)", "var(--warn)", "var(--bad)"];
+
+const ICONS = {
+  start: '<path d="M4 15V3"/><path d="M4 4h7l-2 2.5L11 9H4"/>',
+  finish: '<path d="M4 15V3"/><path d="M4 4h8v6H4z"/><path d="M4 7h8M7 4v6M10 4v6" stroke-width="1"/>',
+  peak: '<path d="M2 14L7 5l2 3.2L11.5 5.5 16 14z"/>',
+  hut: '<path d="M3 9l6-5.5L15 9"/><path d="M4.5 8v6.5h9V8"/>',
+  pass: '<path d="M1.5 12L5 6l2 3 2-4.5 2 4.5 2-3 3.5 6"/>',
+  point: '<circle cx="9" cy="9" r="2.6" fill="currentColor" stroke="none"/><circle cx="9" cy="9" r="6.2" stroke-dasharray="2 2.4"/>',
+};
+function kindIcon(kind) {
+  return `<svg class="cp-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor"
+    stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[kind] || ICONS.point}</svg>`;
 }
 
 function renderStations(stations) {
@@ -166,29 +194,37 @@ function renderStations(stations) {
   }).join("");
 }
 
-function renderProfile(processed) {
-  const w = 800, h = 120, pad = 24;
+// Profil grzbietu jako WYKRES, nie tylko mapa nawigacji: kolor kropki =
+// poziom ryzyka danego dnia, duza liczba nad kropka = temperatura (nie
+// wysokosc), wysokosc zostaje jako mala, druga linia podpisu.
+function renderProfile(perCheckpointDays, dayIndex) {
+  const w = 800, h = 168, pad = 26;
   const minEle = Math.min(...CHECKPOINTS.map((c) => c.ele));
   const maxEle = Math.max(...CHECKPOINTS.map((c) => c.ele));
   const x = (i) => pad + (i / (CHECKPOINTS.length - 1)) * (w - pad * 2);
-  const y = (ele) => h - pad - ((ele - minEle) / (maxEle - minEle)) * (h - pad * 1.6);
+  const y = (ele) => h - 40 - ((ele - minEle) / (maxEle - minEle)) * (h - 40 - pad);
 
   const pts = CHECKPOINTS.map((c, i) => [x(i), y(c.ele)]);
   const line = pts.map((p) => p.join(",")).join(" ");
-  const area = `${pad},${h} ${line} ${w - pad},${h}`;
+  const area = `${pad},${h - 40} ${line} ${w - pad},${h - 40}`;
 
   const dots = CHECKPOINTS.map((c, i) => {
+    const days = perCheckpointDays[c.id];
+    const d = days[Math.min(dayIndex, days.length - 1)];
     const [cx, cy] = pts[i];
+    const dotColor = d ? LEVEL_VAR[d.assess.level] : "var(--muted)";
+    const tColor = d ? tempColor(d.tempAvg) : "var(--muted)";
     return `<g class="profile-pt" data-target="cp-${c.id}" tabindex="0" role="button"
-              aria-label="Przewiń do ${c.name}, ${c.ele} m">
-      <circle cx="${cx}" cy="${cy}" r="14" fill="transparent"/>
-      <circle cx="${cx}" cy="${cy}" r="4"/>
-      <text x="${cx}" y="${cy - 10}">${c.ele}</text>
+              aria-label="Przewiń do ${c.name}, ${c.ele} m, ${d ? d.tempAvg + '°C' : 'brak danych'}">
+      <circle cx="${cx}" cy="${cy}" r="16" fill="transparent"/>
+      <text x="${cx}" y="${cy - 12}" class="profile-temp" fill="${tColor}">${d ? d.tempAvg + "°" : "—"}</text>
+      <circle cx="${cx}" cy="${cy}" r="5" fill="${dotColor}" stroke="var(--bg)" stroke-width="1.5"/>
+      <text x="${cx}" y="${h - 22}" class="profile-ele">${c.ele} m</text>
     </g>`;
   }).join("");
 
   $("#profile").innerHTML = `
-    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="Profil wysokościowy szlaku">
+    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="Profil wysokościowy szlaku z temperaturą">
       <polygon class="profile-area" points="${area}"/>
       <polyline class="profile-line" points="${line}"/>
       ${dots}
@@ -217,8 +253,24 @@ function setActiveDayTab(i) {
   $$(".daytab", $("#dayTabs")).forEach((b, bi) => b.classList.toggle("is-active", bi === i));
 }
 
-function kindIcon(kind) {
-  return { start: "🥾", finish: "🏁", peak: "⛰️", hut: "🛖", pass: "⛓️", point: "📍" }[kind] || "📍";
+// Jedno zdanie na górze — odpowiedź bez scrollowania przez 9 kart.
+function renderSummary(perCheckpointDays, dayIndex) {
+  const rows = CHECKPOINTS.map((c) => {
+    const days = perCheckpointDays[c.id];
+    return { c, d: days[Math.min(dayIndex, days.length - 1)] };
+  }).filter((r) => r.d);
+  if (!rows.length) return;
+
+  const tMin = Math.min(...rows.map((r) => r.d.tempMin));
+  const tMax = Math.max(...rows.map((r) => r.d.tempMax));
+  const gustMax = Math.max(...rows.map((r) => r.d.gustMax));
+  const worst = rows.reduce((a, b) => (b.d.assess.level > a.d.assess.level ? b : a));
+
+  const tail = worst.d.assess.level === 0
+    ? "Na całym grzbiecie spokojnie."
+    : `${worst.d.assess.label} przy ${worst.c.name}: ${worst.d.assess.detail}.`;
+
+  $("#daySummary").textContent = `Grzbiet: ${tMin}–${tMax}°C, porywy do ${gustMax} km/h. ${tail}`;
 }
 
 function renderCheckpoints(perCheckpointDays, dayIndex) {
@@ -227,8 +279,8 @@ function renderCheckpoints(perCheckpointDays, dayIndex) {
     const days = perCheckpointDays[c.id];
     const d = days[Math.min(dayIndex, days.length - 1)];
     if (!d) return "";
-    const sp = spreadLabel(d.spread);
-    const fog = d.fogHours >= 1 ? `<p class="cp-fog">☁️ we mgle ok. ${d.fogHours}h w ciągu dnia</p>` : "";
+    const sn = spreadNote(d.spread);
+    const badgeText = d.assess.level === 0 ? d.assess.label : `${d.assess.label}: ${d.assess.detail}`;
     return `<article class="checkpoint" id="cp-${c.id}">
       <header>
         <h3>${kindIcon(c.kind)} ${c.name}</h3>
@@ -236,19 +288,18 @@ function renderCheckpoints(perCheckpointDays, dayIndex) {
       </header>
       <div class="cp-body">
         <div class="cp-temp">
-          <b>${d.tempAvg}°C</b>
+          <b style="color:${tempColor(d.tempAvg)}">${d.tempAvg}°C</b>
           <span>${d.tempMin}°–${d.tempMax}°</span>
           <small>odczuwalna ${d.feelsAvg}°C</small>
         </div>
-        <div class="cp-verdict verdict--${d.verdict}">${d.verdict}</div>
+        <div class="cp-badge cp-badge--${d.assess.level}">${badgeText}</div>
       </div>
       <div class="cp-stats">
-        <span>💨 ${d.windAvg} km/h <small>(porywy ${d.gustMax})</small></span>
-        <span>🌧️ ${d.precipSum} mm</span>
-        <span>☁️ zachm. ${d.cloudAvg}%</span>
+        <span>wiatr ${d.windAvg} km/h <small>(porywy ${d.gustMax})</small></span>
+        <span>opad ${d.precipSum} mm</span>
+        <span>zachm. ${d.cloudAvg}%</span>
       </div>
-      ${fog}
-      <p class="cp-spread cp-spread--${sp.cls}">${sp.text}${d.spread != null ? ` (±${d.spread}°C)` : ""}</p>
+      ${sn ? `<p class="cp-spread cp-spread--${sn.cls}">${sn.text}</p>` : ""}
     </article>`;
   }).join("");
 }
@@ -266,7 +317,6 @@ async function init() {
     ]);
 
     renderStations(stationResults);
-    renderProfile();
 
     const perCheckpointDays = {};
     CHECKPOINTS.forEach((c, i) => { perCheckpointDays[c.id] = buildDays(ensemble[i].hourly); });
@@ -276,10 +326,12 @@ async function init() {
     const selectDay = (i) => {
       activeDay = i;
       setActiveDayTab(activeDay);
+      renderProfile(perCheckpointDays, activeDay);
+      renderSummary(perCheckpointDays, activeDay);
       renderCheckpoints(perCheckpointDays, activeDay);
     };
     renderDayTabs(dates, activeDay, selectDay);
-    renderCheckpoints(perCheckpointDays, activeDay);
+    selectDay(activeDay);
 
     status.textContent = "";
     $("#updated").textContent = `Zaktualizowano ${new Date().toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })}`;

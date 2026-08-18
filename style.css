@@ -135,6 +135,9 @@ a { color: var(--cold); }
 }
 
 /* ── Profil wysokościowy ────────────────────────────────────────────── */
+/* Sygnaturowy element strony: nie tylko nawigacja, ale WYKRES dnia --
+   kolor kropki = poziom ryzyka (assess.level), duza liczba = temperatura
+   (kolorowana zimno/normalnie), wysokosc zeszla do drugorzednego podpisu. */
 .profile-wrap {
   padding: 20px 12px 4px;
   position: sticky;
@@ -152,17 +155,18 @@ a { color: var(--cold); }
   stroke-width: 2;
   stroke-linejoin: round;
 }
-.profile-pt circle:nth-child(2) {
-  fill: var(--bg);
-  stroke: var(--trail);
-  stroke-width: 2;
-}
 .profile-pt { cursor: pointer; }
-.profile-pt:hover circle:nth-child(2),
-.profile-pt:focus-visible circle:nth-child(2) {
-  fill: var(--trail);
+.profile-pt:hover circle:last-of-type,
+.profile-pt:focus-visible circle:last-of-type {
+  r: 7;
 }
-.profile-pt text {
+.profile-temp {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+  text-anchor: middle;
+}
+.profile-ele {
   fill: var(--muted);
   font-family: var(--font-mono);
   font-size: 9px;
@@ -199,6 +203,11 @@ a { color: var(--cold); }
   border-color: var(--trail);
   color: var(--ink);
   font-weight: 500;
+}
+.day-summary {
+  margin: 10px 2px 0;
+  font-size: 14px;
+  line-height: 1.4;
 }
 .days-note {
   margin: 6px 2px 0;
@@ -243,6 +252,15 @@ a { color: var(--cold); }
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 19px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cp-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--trail);
+  flex: none;
 }
 .cp-ele {
   font-family: var(--font-mono);
@@ -255,6 +273,8 @@ a { color: var(--cold); }
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 .cp-temp {
   display: flex;
@@ -277,18 +297,22 @@ a { color: var(--cold); }
   color: var(--muted);
   font-size: 12px;
 }
-.cp-verdict {
+
+/* Odznaka werdyktu: teraz zawsze niesie KONKRETNY powod ("Uwaga: wiatr
+   24 km/h"), nie samo abstrakcyjne slowo -- kolor tylko wzmacnia to, co
+   juz jest napisane wprost. */
+.cp-badge {
   font-family: var(--font-mono);
   font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   padding: 6px 12px;
-  border-radius: 999px;
-  white-space: nowrap;
+  border-radius: 10px;
+  line-height: 1.35;
 }
-.verdict--dobre  { background: color-mix(in srgb, var(--good) 22%, transparent); color: var(--good); }
-.verdict--zmienne { background: color-mix(in srgb, var(--warn) 22%, transparent); color: var(--warn); }
-.verdict--trudne { background: color-mix(in srgb, var(--bad) 22%, transparent); color: var(--bad); }
+.cp-badge--0 { background: color-mix(in srgb, var(--good) 20%, transparent); color: var(--good); }
+.cp-badge--1 { background: color-mix(in srgb, var(--warn) 20%, transparent); color: var(--warn); }
+.cp-badge--2 { background: color-mix(in srgb, var(--bad) 24%, transparent); color: var(--bad); font-weight: 600; }
 
 .cp-stats {
   display: flex;
@@ -300,11 +324,6 @@ a { color: var(--cold); }
   padding-top: 10px;
 }
 .cp-stats small { color: var(--muted); }
-.cp-fog {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: var(--warn);
-}
 .cp-spread {
   margin: 10px 0 0;
   font-family: var(--font-mono);
