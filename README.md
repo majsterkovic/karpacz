@@ -61,5 +61,15 @@ Faktyczny deploy (kontener, sieć, routing) żyje w osobnym, prywatnym repo
 Kolejność publikacji zmiany: push tutaj (buduje `:latest`) → uruchom deploy
 w `infra` (pull + recreate na VPS-ie).
 
-**Wymaga jednorazowego ręcznego kroku** (nie do zautomatyzowania stąd):
-rekord DNS w Cloudflare dla `karpacz.hybiak.eu` — CNAME na tunel z `infra`.
+DNS: `karpacz.hybiak.eu` był już pokryty istniejącym wildcardem `*.hybiak.eu`,
+więc żaden ręczny krok w Cloudflare nie był finalnie potrzebny.
+
+**Cache po stronie Cloudflare**: `app.js`/`style.css` są cache'owane na
+brzegu Cloudflare (domyślna reguła dla rozszerzeń .js/.css, ~4h TTL),
+podczas gdy `index.html` jest zawsze `DYNAMIC` (bez cache'a). Efekt: po
+deployu origin ma już nową wersję, ale odwiedzający mogą dostać starą
+z cache'a aż do wygaśnięcia TTL. Rozwiązanie: `index.html` linkuje pliki
+z wersjonowanym query stringiem (`app.js?v=2`) — zmiana tej liczby przy
+każdym deployu, który dotyka `app.js`/`style.css`, wymusza nowy klucz
+cache'a i nową treść od razu, bez czekania i bez potrzeby ręcznego
+purge'a w panelu Cloudflare.
