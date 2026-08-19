@@ -16,21 +16,28 @@ klucza, więc przeglądarka pyta je bezpośrednio:
   terenu), co dla stromego grzbietu zaniża wiatr i zawyża temperaturę o kilka
   stopni. Wysokości w `CHECKPOINTS` w `app.js` są zweryfikowane przez
   `api.open-meteo.com/v1/elevation` (model terenu Copernicus DEM).
-- **IMGW-PIB** (`danepubliczne.imgw.pl/api/data/synop/id/<id>`) — oficjalne
-  odczyty ze stacji synoptycznych. W Karkonoszach są tylko dwie:
-  **Śnieżka** (12510, 1602 m, leży dokładnie na szlaku) i **Jelenia Góra**
-  (12500, dolina, referencja dla strony Karpacza). Reszta grzbietu nie ma
-  żadnej publicznej stacji z darmowym API — stąd ensemble modeli jako
-  jedyne źródło dla pozostałych 7 punktów.
+- **IMGW-PIB** — dwie sieci, oba `Access-Control-Allow-Origin: *`, bez klucza:
+  - `api/data/synop/id/<id>` (klasyczna, godzinowa): **Śnieżka** (12510,
+    1602 m, leży dokładnie na szlaku) i **Jelenia Góra** (12500, dolina,
+    referencja dla strony Karpacza).
+  - `api/data/meteo/id/<kod>` (automatyczna, co 10 min, gęstsza sieć):
+    dokłada **Karpacz** (250150220, 567 m) i **Szklarska Poręba**
+    (250150150, 648 m). W tej samej sieci są też stacje bliżej grzbietu
+    (Mała Kopa, Szrenica), ale **nie mają czujnika temperatury** — mierzą
+    tylko opad, więc świadomie ich tu nie ma.
+  - Reszta 7 punktów na grzbiecie nie ma żadnej publicznej stacji z
+    darmowym API — stąd ensemble modeli jako jedyne źródło dla nich.
 
 Konsekwencja: serwer (`nginx:alpine`) serwuje wyłącznie pliki statyczne.
 Żadnych kluczy, żadnego stanu, żadnego procesu aplikacyjnego do utrzymania.
 
 ## Metodologia
 
-- **Próbka dnia**: godziny 8–20 (pora, w której ktoś realnie jest na
-  szlaku). Suma opadu i zachmurzenie to średnie/sumy z tych godzin, nie
-  z całej doby — zaznaczone wprost w UI.
+- **Próbka dnia**: co godzinę, 6–22 (pora, w której ktoś realnie jest na
+  szlaku). Każda karta checkpointu pokazuje pasek ze wszystkimi 17
+  godzinami, nie jedną uśrednioną liczbę — łatwiej zobaczyć np. "zimno
+  o 8:00, ciepło o 15:00". Suma opadu, zachmurzenie i zakres min–max to
+  wciąż agregaty z tego okna, nie z całej doby — zaznaczone wprost w UI.
 - **Werdykt (dobre/zmienne/trudne)**: prosty próg na wietrze średnim,
   porywach, opadzie i godzinach mgły — patrz `verdict()` w `app.js`.
   Mgła = podstawa chmur (wzór Espy'ego, `125 × (T − Td)`) niżej niż

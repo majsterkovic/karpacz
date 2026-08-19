@@ -15,9 +15,15 @@ const CHECKPOINTS = [
   { id: "szklarska",  name: "Szklarska Poręba",     lat: 50.8286, lon: 15.5222, ele: 686,  kind: "finish", imgw: null },
 ];
 
+// Dwie sieci stacji IMGW: "synop" (klasyczna, godzinowa) i "meteo"
+// (automatyczna, co 10 min, gęstsza, ale część stacji mierzy tylko opad —
+// np. Mała Kopa i Szrenica w tej sieci NIE mają czujnika temperatury,
+// dlatego nie ma ich tutaj mimo że leżą na szlaku).
 const REF_STATIONS = [
-  { id: "12510", name: "Śnieżka",       note: "na szlaku, 1602 m" },
-  { id: "12500", name: "Jelenia Góra",  note: "dolina, ok. 9 km od Karpacza" },
+  { id: "12510",     kind: "synop", name: "Śnieżka",          note: "na szlaku, 1602 m" },
+  { id: "12500",     kind: "synop", name: "Jelenia Góra",     note: "dolina, ok. 9 km od Karpacza" },
+  { id: "250150220", kind: "meteo", name: "Karpacz",          note: "miasto, 567 m" },
+  { id: "250150150", kind: "meteo", name: "Szklarska Poręba", note: "miasto, 648 m" },
 ];
 
 const MODELS = [
@@ -28,7 +34,7 @@ const HOURLY_VARS = [
   "temperature_2m", "apparent_temperature", "dew_point_2m", "precipitation",
   "wind_speed_10m", "wind_gusts_10m", "cloud_cover", "relative_humidity_2m",
 ];
-const DAY_HOURS = [8, 11, 14, 17, 20]; // reprezentatywne godziny szlaku (8:00–20:00)
+const DAY_HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // co godzinę, 6:00–22:00 (pora szlaku)
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
@@ -77,10 +83,39 @@ async function fetchEnsemble() {
   return Array.isArray(data) ? data : [data];
 }
 
-async function fetchStation(id) {
-  const res = await fetch(`https://danepubliczne.imgw.pl/api/data/synop/id/${id}`);
-  if (!res.ok) throw new Error(`IMGW ${id}: HTTP ${res.status}`);
-  return res.json();
+// Normalizuje dwa różne kształty odpowiedzi IMGW (synop vs. meteo) do
+// jednego wspólnego kształtu, żeby renderStations nie musiał znać różnicy.
+function normalizeStation(kind, raw) {
+  if (kind === "meteo") {
+    if (raw.temperatura_powietrza == null) throw new Error("stacja bez czujnika temp.");
+    const [date, time] = (raw.temperatura_powietrza_data || "").split(" ");
+    return {
+      temp: round(Number(raw.temperatura_powietrza), 1),
+      wind: raw.wiatr_srednia_predkosc != null ? round(Number(raw.wiatr_srednia_predkosc), 1) : null,
+      humidity: raw.wilgotnosc_wzgledna != null ? round(Number(raw.wilgotnosc_wzgledna), 0) : null,
+      time: time ? time.slice(0, 5) : "?",
+      date: date || "?",
+    };
+  }
+  return {
+    temp: Number(raw.temperatura),
+    wind: Number(raw.predkosc_wiatru),
+    humidity: Number(raw.wilgotnosc_wzgledna),
+    time: `${raw.godzina_pomiaru}:00`,
+    date: raw.data_pomiaru,
+  };
+}
+
+async function fetchStation(s) {
+  const url = s.kind === "meteo"
+    ? `https://danepubliczne.imgw.pl/api/data/meteo/id/${s.id}`
+    : `https://danepubliczne.imgw.pl/api/data/synop/id/${s.id}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`IMGW ${s.id}: HTTP ${res.status}`);
+  const json = await res.json();
+  const raw = Array.isArray(json) ? json[0] : json;
+  if (!raw) throw new Error("brak odpowiedzi");
+  return normalizeStation(s.kind, raw);
 }
 
 // Przetwarza surową odpowiedź jednej lokalizacji na dni z uśrednionym ensemble.
@@ -92,14 +127,15 @@ function buildDays(hourly) {
     const hour = Number(time.slice(0, 2));
     if (!DAY_HOURS.includes(hour)) return;
     if (!byDate.has(date)) byDate.set(date, []);
-    byDate.get(date).push(i);
+    byDate.get(date).push({ i, hour });
   });
 
   const days = [];
   for (const [date, idxs] of byDate) {
     const sample = { temp: [], feels: [], wind: [], gust: [], precip: 0, fogHours: 0, cloud: [], rh: [] };
     let modelSpread = [];
-    for (const i of idxs) {
+    const hourRows = [];
+    for (const { i, hour } of idxs) {
       const perModelTemp = [];
       for (const m of MODELS) {
         const t = hourly[`temperature_2m_${m}`]?.[i];
@@ -123,6 +159,7 @@ function buildDays(hourly) {
       if (perModelTemp.length > 1) {
         modelSpread.push(Math.max(...perModelTemp) - Math.min(...perModelTemp));
       }
+      if (perModelTemp.length) hourRows.push({ hour, temp: round(mean(perModelTemp), 1) });
     }
     if (!sample.temp.length) continue;
     days.push({
@@ -130,6 +167,7 @@ function buildDays(hourly) {
       tempAvg: round(mean(sample.temp), 1),
       tempMin: round(Math.min(...sample.temp), 1),
       tempMax: round(Math.max(...sample.temp), 1),
+      hourly: hourRows.sort((a, b) => a.hour - b.hour),
       feelsAvg: round(mean(sample.feels), 1),
       windAvg: round(mean(sample.wind), 0),
       gustMax: round(Math.max(...sample.gust), 0),
@@ -185,11 +223,11 @@ function renderStations(stations) {
     return `<div class="station">
       <span class="station-name">${s.name}<small>${s.note}</small></span>
       <span class="station-read">
-        <b>${d.temperatura}°C</b>
-        <span>wiatr ${d.predkosc_wiatru} m/s</span>
-        <span>wilg. ${d.wilgotnosc_wzgledna}%</span>
+        <b>${d.temp}°C</b>
+        <span>wiatr ${d.wind} m/s</span>
+        <span>wilg. ${d.humidity}%</span>
       </span>
-      <span class="station-time">${d.godzina_pomiaru}:00, ${d.data_pomiaru}</span>
+      <span class="station-time">${d.time}, ${d.date}</span>
     </div>`;
   }).join("");
 }
@@ -215,7 +253,8 @@ function renderProfile(perCheckpointDays, dayIndex) {
     const dotColor = d ? LEVEL_VAR[d.assess.level] : "var(--muted)";
     const tColor = d ? tempColor(d.tempAvg) : "var(--muted)";
     return `<g class="profile-pt" data-target="cp-${c.id}" tabindex="0" role="button"
-              aria-label="Przewiń do ${c.name}, ${c.ele} m, ${d ? d.tempAvg + '°C' : 'brak danych'}">
+              aria-label="Przewiń do ${c.name}, ${c.ele} m, ${d ? d.tempAvg + '°C, średnia z godz. 6–22' : 'brak danych'}">
+      <title>${c.name}: ${d ? d.tempAvg + '°C (średnia z godz. 6–22, 6 modeli)' : 'brak danych'}</title>
       <circle cx="${cx}" cy="${cy}" r="16" fill="transparent"/>
       <text x="${cx}" y="${cy - 12}" class="profile-temp" fill="${tColor}">${d ? d.tempAvg + "°" : "—"}</text>
       <circle cx="${cx}" cy="${cy}" r="5" fill="${dotColor}" stroke="var(--bg)" stroke-width="1.5"/>
@@ -288,9 +327,18 @@ function renderCheckpoints(perCheckpointDays, dayIndex) {
       </header>
       <div class="cp-body">
         <div class="cp-temp">
-          <b style="color:${tempColor(d.tempAvg)}">${d.tempAvg}°C</b>
-          <span>${d.tempMin}°–${d.tempMax}°</span>
-          <small>odczuwalna ${d.feelsAvg}°C</small>
+          <div class="cp-hourly-wrap">
+            <div class="cp-hourly">
+              ${d.hourly.map((h) => `<div class="hr-chip">
+                <b style="color:${tempColor(h.temp)}">${h.temp}°</b>
+                <small>${h.hour}</small>
+              </div>`).join("")}
+            </div>
+          </div>
+          <div class="cp-temp-meta">
+            <span>${d.tempMin}°–${d.tempMax}° w ciągu dnia</span>
+            <small>odczuwalna śr. ${d.feelsAvg}°C</small>
+          </div>
         </div>
         <div class="cp-badge cp-badge--${d.assess.level}">${badgeText}</div>
       </div>
@@ -311,7 +359,7 @@ async function init() {
     const [ensemble, stationResults] = await Promise.all([
       fetchEnsemble(),
       Promise.all(REF_STATIONS.map(async (s) => {
-        try { return { ...s, data: await fetchStation(s.id) }; }
+        try { return { ...s, data: await fetchStation(s) }; }
         catch (e) { return { ...s, error: e.message }; }
       })),
     ]);
