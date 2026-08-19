@@ -41,6 +41,11 @@ const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
 const fmtDate = (d) => d.toLocaleDateString("pl-PL", { weekday: "short", day: "2-digit", month: "2-digit" });
 const round = (n, p = 0) => (n == null ? null : Math.round(n * 10 ** p) / 10 ** p);
 const mean = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
+const median = (arr) => {
+  const s = [...arr].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+};
 
 function cloudBaseAboveGround(t, td) {
   // Wzór Espy'ego: wysokość podstawy chmur konwekcyjnych nad poziomem punktu pomiaru.
@@ -164,7 +169,13 @@ function buildDays(hourly) {
     if (!sample.temp.length) continue;
     days.push({
       date,
-      tempAvg: round(mean(sample.temp), 1),
+      // Mediana zamiast średniej dla nagłówkowej liczby na wykresie profilu:
+      // odporna na pojedynczą godzinę/model odstający od reszty (np. jeden
+      // model przewidujący nagły upał o 14:00), lepiej oddaje "typową"
+      // temperaturę dnia niż średnia. Liczona z tej samej populacji co
+      // tempMin/tempMax (wszystkie odczyty model×godzina), więc min ≤
+      // mediana ≤ max pozostaje spójne.
+      tempMedian: round(median(sample.temp), 1),
       tempMin: round(Math.min(...sample.temp), 1),
       tempMax: round(Math.max(...sample.temp), 1),
       hourly: hourRows.sort((a, b) => a.hour - b.hour),
@@ -251,19 +262,19 @@ function renderProfile(perCheckpointDays, dayIndex) {
     const d = days[Math.min(dayIndex, days.length - 1)];
     const [cx, cy] = pts[i];
     const dotColor = d ? LEVEL_VAR[d.assess.level] : "var(--muted)";
-    const tColor = d ? tempColor(d.tempAvg) : "var(--muted)";
+    const tColor = d ? tempColor(d.tempMedian) : "var(--muted)";
     return `<g class="profile-pt" data-target="cp-${c.id}" tabindex="0" role="button"
-              aria-label="Przewiń do ${c.name}, ${c.ele} m, ${d ? d.tempAvg + '°C, średnia z godz. 6–22' : 'brak danych'}">
-      <title>${c.name}: ${d ? d.tempAvg + '°C (średnia z godz. 6–22, 6 modeli)' : 'brak danych'}</title>
+              aria-label="Przewiń do ${c.name}, ${c.ele} m, ${d ? d.tempMedian + '°C, mediana z godz. 6–22' : 'brak danych'}">
+      <title>${c.name}: ${d ? d.tempMedian + '°C (mediana z godz. 6–22, 6 modeli)' : 'brak danych'}</title>
       <circle cx="${cx}" cy="${cy}" r="16" fill="transparent"/>
-      <text x="${cx}" y="${cy - 12}" class="profile-temp" fill="${tColor}">${d ? d.tempAvg + "°" : "—"}</text>
+      <text x="${cx}" y="${cy - 12}" class="profile-temp" fill="${tColor}">${d ? d.tempMedian + "°" : "—"}</text>
       <circle cx="${cx}" cy="${cy}" r="5" fill="${dotColor}" stroke="var(--bg)" stroke-width="1.5"/>
       <text x="${cx}" y="${h - 22}" class="profile-ele">${c.ele} m</text>
     </g>`;
   }).join("");
 
   $("#profile").innerHTML = `
-    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="Profil wysokościowy szlaku z temperaturą">
+    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="Profil wysokościowy szlaku z medianą temperatury">
       <polygon class="profile-area" points="${area}"/>
       <polyline class="profile-line" points="${line}"/>
       ${dots}

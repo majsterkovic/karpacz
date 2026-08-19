@@ -38,6 +38,11 @@ Konsekwencja: serwer (`nginx:alpine`) serwuje wyłącznie pliki statyczne.
   godzinami, nie jedną uśrednioną liczbę — łatwiej zobaczyć np. "zimno
   o 8:00, ciepło o 15:00". Suma opadu, zachmurzenie i zakres min–max to
   wciąż agregaty z tego okna, nie z całej doby — zaznaczone wprost w UI.
+- **Wykres profilu wysokościowego**: duża liczba nad każdym punktem to
+  **mediana**, nie średnia, wszystkich odczytów temperatury (6 modeli ×
+  17 godzin, 6–22) tego dnia — odporna na pojedynczą godzinę/model
+  odstający od reszty. Podpisane wprost nad wykresem, żeby nie trzeba
+  było najeżdżać na kropkę po tooltip.
 - **Werdykt (dobre/zmienne/trudne)**: prosty próg na wietrze średnim,
   porywach, opadzie i godzinach mgły — patrz `verdict()` w `app.js`.
   Mgła = podstawa chmur (wzór Espy'ego, `125 × (T − Td)`) niżej niż

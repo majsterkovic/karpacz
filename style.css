@@ -140,14 +140,23 @@ a { color: var(--cold); }
 
 /* ── Profil wysokościowy ────────────────────────────────────────────── */
 /* Sygnaturowy element strony: nie tylko nawigacja, ale WYKRES dnia --
-   kolor kropki = poziom ryzyka (assess.level), duza liczba = temperatura
-   (kolorowana zimno/normalnie), wysokosc zeszla do drugorzednego podpisu. */
+   kolor kropki = poziom ryzyka (assess.level), duza liczba = MEDIANA
+   temperatury (nie srednia -- odporna na pojedyncza godzine/model
+   odstajacy), kolorowana zimno/normalnie, wysokosc zeszla do
+   drugorzednego podpisu. .profile-caption ponizej ostrzega o tym
+   wprost w UI, zeby nie trzeba bylo najezdzac na kropke po tooltip. */
 .profile-wrap {
   padding: 20px 12px 4px;
   position: sticky;
   top: 0;
   background: linear-gradient(var(--bg) 82%, transparent);
   z-index: 5;
+}
+.profile-caption {
+  margin: 0 4px 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
 }
 .profile svg { width: 100%; height: auto; display: block; overflow: visible; }
 .profile-area {
