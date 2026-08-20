@@ -65,6 +65,15 @@ Konsekwencja: serwer (`nginx:alpine`) serwuje wyłącznie pliki statyczne.
   skalibrowane na realnej prognozie: dzień z rozrzuconym, niepewnym
   opadem (0 godzin z większością) nie dostaje odznaki, żeby nie
   spowszedniała.
+- **Deszcz na profilu wysokościowym**: pod wysokością każdego punktu (gdy
+  >0) liczba godzin z tym samym progiem "większości modeli" (≥3/6) co
+  odznaka na karcie dnia — więc wybierając kolejne dni w zakładkach od
+  razu widać, gdzie na trasie i jak długo ma padać, bez najeżdżania na
+  kropkę. Etykieta celowo skrócona do samej liczby (`5h`, nie
+  `5h deszcz`) — przy szerokości viewBoksu SVG skalowanej do ekranu
+  telefonu dłuższy tekst wymuszał mniejszą czcionkę, która stawała się
+  nieczytelna (ten sam problem widoczności co niżej opisany konsensus
+  godzinowy, tylko w kontekście SVG zamiast HTML-owego tekstu).
 
 ## Punkty kontrolne
 
