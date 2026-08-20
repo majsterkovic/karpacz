@@ -318,20 +318,24 @@ function renderProfile(perCheckpointDays, dayIndex) {
     const [cx, cy] = pts[i];
     const dotColor = d ? LEVEL_VAR[d.assess.level] : "var(--muted)";
     const tColor = d ? tempColor(d.tempMedian) : "var(--muted)";
-    // Godziny (z 17, 6–22) z większością modeli (≥3/6) zgadzającą się na
-    // opad -- ta sama metryka co odznaka na daytabie, ale tu lokalnie dla
-    // TEGO punktu na grzbiecie, nie mediana po wszystkich 9. Pokazane tylko
-    // gdy >0, żeby suche punkty nie dostawały pustej niebieskiej liczby.
+    // Bramka widoczności: godziny (z 17, 6–22) z większością modeli (≥3/6)
+    // zgadzającą się na opad -- ta sama metryka co odznaka na daytabie.
+    // Filtruje szum: nawet "suche" dni mają precipSum ~0.3-0.5mm (zaokrąglenia
+    // modeli), więc samo precipSum>0 pokazywałoby etykietę prawie zawsze.
     const rainH = d?.rainMajorityHours;
-    // Sam tekst "Xh", bez slowa "deszcz" -- SVG skaluje sie do 100% szerokosci
+    // Treść etykiety to jednak mm, nie liczba godzin -- "9h" bez kontekstu
+    // było niejasne (użytkownik pytał "co znaczy 9h?"), a mm to ta sama
+    // jednostka co "opad X mm" już widoczna niżej w karcie checkpointu, więc
+    // nie trzeba dekodować nowego pojęcia. SVG skaluje sie do 100% szerokosci
     // kontenera (preserveAspectRatio="none"), wiec na waskim telefonie
     // (~390px vs viewBox 800) kazda jednostka viewBox to ok. 0.46px realnego
-    // ekranu. Krotszy tekst = mozna podbic font-size bez ryzyka zderzenia
-    // z sasiednim punktem (9 punktow na 800 jednostek = ~93 jedn. odstepu).
+    // ekranu -- sprawdzone, "14.9mm" (6 znakow) wciaz miesci sie w odstepie
+    // miedzy punktami (9 punktow na 800 jednostek = ~93 jedn. odstepu).
+    const rainMM = d?.precipSum;
     const rainLabel = rainH > 0
-      ? `<text x="${cx}" y="${h - 16}" class="profile-rain">${rainH}h</text>`
+      ? `<text x="${cx}" y="${h - 16}" class="profile-rain">${rainMM}mm</text>`
       : "";
-    const rainAria = rainH > 0 ? `, deszcz ${rainH} z 17 godz.` : "";
+    const rainAria = rainH > 0 ? `, opad ${rainMM} mm (${rainH} z 17 godz. z wyraźnym opadem)` : "";
     return `<g class="profile-pt" data-target="cp-${c.id}" tabindex="0" role="button"
               aria-label="Przewiń do ${c.name}, ${c.ele} m, ${d ? d.tempMedian + '°C, mediana z godz. 6–22' + rainAria : 'brak danych'}">
       <title>${c.name}: ${d ? d.tempMedian + '°C (mediana z godz. 6–22, 6 modeli)' + rainAria : 'brak danych'}</title>
@@ -344,7 +348,7 @@ function renderProfile(perCheckpointDays, dayIndex) {
   }).join("");
 
   $("#profile").innerHTML = `
-    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="Profil wysokościowy szlaku z medianą temperatury i konsensusem deszczu">
+    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="Profil wysokościowy szlaku z medianą temperatury i sumą opadu">
       <polygon class="profile-area" points="${area}"/>
       <polyline class="profile-line" points="${line}"/>
       ${dots}

@@ -66,14 +66,21 @@ Konsekwencja: serwer (`nginx:alpine`) serwuje wyłącznie pliki statyczne.
   opadem (0 godzin z większością) nie dostaje odznaki, żeby nie
   spowszedniała.
 - **Deszcz na profilu wysokościowym**: pod wysokością każdego punktu (gdy
-  >0) liczba godzin z tym samym progiem "większości modeli" (≥3/6) co
-  odznaka na karcie dnia — więc wybierając kolejne dni w zakładkach od
-  razu widać, gdzie na trasie i jak długo ma padać, bez najeżdżania na
-  kropkę. Etykieta celowo skrócona do samej liczby (`5h`, nie
-  `5h deszcz`) — przy szerokości viewBoksu SVG skalowanej do ekranu
-  telefonu dłuższy tekst wymuszał mniejszą czcionkę, która stawała się
-  nieczytelna (ten sam problem widoczności co niżej opisany konsensus
-  godzinowy, tylko w kontekście SVG zamiast HTML-owego tekstu).
+  jest sygnał) suma opadu w mm — ta sama wielkość i jednostka co "opad X mm"
+  już widoczna niżej w każdej karcie checkpointu, więc nie trzeba się uczyć
+  nowego pojęcia. Pierwsza wersja pokazywała liczbę godzin z większością
+  modeli zgadzającą się na opad (`5h`) zamiast mm, ale to wymagało czytania
+  legendy, żeby wiedzieć, co znaczy sama liczba — mm mówi to wprost.
+  Widoczność etykiety wciąż bramkowana progiem "większości modeli" (≥3/6,
+  ten sam co odznaka na karcie dnia), nie samym `precipSum>0`, bo nawet
+  "suche" dni mają ~0.3–0.5 mm szumu zaokrągleniowego, co pokazywałoby
+  etykietę prawie zawsze i unieważniało jej sens. Wybierając kolejne dni w
+  zakładkach od razu widać, gdzie na trasie i ile ma spaść, bez najeżdżania
+  na kropkę. Krótki tekst (`14.9mm`) był też celowy ze względów SVG: przy
+  szerokości viewBoksu skalowanej do ekranu telefonu dłuższy tekst wymuszałby
+  mniejszą czcionkę, nieczytelną (ten sam problem widoczności co niżej
+  opisany konsensus godzinowy, tylko w kontekście SVG zamiast HTML-owego
+  tekstu).
 
 ## Punkty kontrolne
 
