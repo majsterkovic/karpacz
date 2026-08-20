@@ -347,6 +347,18 @@ a { color: var(--cold); }
   color: var(--muted);
   font-size: 10px;
 }
+/* Konsensus deszczu per godzina: % modeli zgadzajacych sie na mierzalny
+   opad (>0.1mm). Opacity zamiast pokazywania/ukrywania -- dzieki temu
+   kazdy chip ma ta sama wysokosc (brak przeskakiwania layoutu miedzy
+   suchymi i mokrymi godzinami), a oko samo wylapuje wzorce w rzedzie. */
+.hr-rain {
+  font-family: var(--font-mono);
+  color: var(--cold);
+  font-size: 10px;
+  font-weight: 500;
+  min-height: 12px;
+  line-height: 12px;
+}
 .cp-temp-meta {
   display: flex;
   align-items: baseline;

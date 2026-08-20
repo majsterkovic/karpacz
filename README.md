@@ -50,6 +50,13 @@ Konsekwencja: serwer (`nginx:alpine`) serwuje wyłącznie pliki statyczne.
 - **Rozrzut modeli**: różnica maks.–min. temperatury między 6 modelami w
   danym dniu. Mały rozrzut = modele się zgadzają = prognoza pewniejsza;
   duży = warto sprawdzić bliżej terminu.
+- **Konsensus deszczu**: pod każdą godzinną temperaturą procent modeli,
+  które przewidują tam mierzalny opad (próg 0.1 mm/h — poniżej tego
+  modele czasem zwracają szum zaokrągleniowy mimo realnie suchej
+  prognozy). To **zgoda między modelami co do "kiedy"**, nie suma opadu —
+  ta druga wciąż jest w `cp-stats` jako agregat dzienny. Świadomie osobno:
+  "4/6 modeli zgadza się, że o 14:00 będzie mokro" mówi coś innego niż
+  "dziś spadnie 3 mm", zwłaszcza przy planowaniu, kiedy wyjść na szlak.
 
 ## Punkty kontrolne
 

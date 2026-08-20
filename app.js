@@ -35,6 +35,10 @@ const HOURLY_VARS = [
   "wind_speed_10m", "wind_gusts_10m", "cloud_cover", "relative_humidity_2m",
 ];
 const DAY_HOURS = Array.from({ length: 17 }, (_, i) => i + 6); // co godzinę, 6:00–22:00 (pora szlaku)
+// Próg "mokrej" godziny na model. Poniżej tego modele czasem zwracają szum
+// zaokrągleniowy (0.05 mm) mimo realnie suchej prognozy -- 0.1 mm to
+// standardowy meteorologiczny próg "mierzalnego" opadu.
+const WET_HOUR_MM = 0.1;
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
@@ -142,6 +146,7 @@ function buildDays(hourly) {
     const hourRows = [];
     for (const { i, hour } of idxs) {
       const perModelTemp = [];
+      const perModelPrecip = [];
       for (const m of MODELS) {
         const t = hourly[`temperature_2m_${m}`]?.[i];
         const at = hourly[`apparent_temperature_${m}`]?.[i];
@@ -155,7 +160,7 @@ function buildDays(hourly) {
         if (at != null) sample.feels.push(at);
         if (w != null) sample.wind.push(w);
         if (g != null) sample.gust.push(g);
-        if (p != null) sample.precip += p / MODELS.length;
+        if (p != null) { sample.precip += p / MODELS.length; perModelPrecip.push(p); }
         if (cc != null) sample.cloud.push(cc);
         if (rh != null) sample.rh.push(rh);
         const base = cloudBaseAboveGround(t, td);
@@ -164,7 +169,27 @@ function buildDays(hourly) {
       if (perModelTemp.length > 1) {
         modelSpread.push(Math.max(...perModelTemp) - Math.min(...perModelTemp));
       }
-      if (perModelTemp.length) hourRows.push({ hour, temp: round(mean(perModelTemp), 1) });
+      // Konsensus deszczu = ile z 6 modeli zgadza się, że ta godzina będzie
+      // mokra (nie ile spadnie -- to już jest w opadzie dziennym w cp-stats).
+      // Ważne przy szlaku: jedna godzina "4/6 modeli" mówi więcej niż suma
+      // opadu z całego dnia, bo "kiedy" jest równie ważne co "ile".
+      let wetModels = 0;
+      if (perModelPrecip.length) {
+        wetModels = perModelPrecip.filter((v) => v > WET_HOUR_MM).length;
+      }
+      if (perModelTemp.length) {
+        hourRows.push({
+          hour,
+          temp: round(mean(perModelTemp), 1),
+          wetModels,
+          modelCount: perModelPrecip.length,
+          precipProb: perModelPrecip.length ? round(wetModels / perModelPrecip.length, 2) : null,
+          // 2 miejsca po przecinku, nie 1 -- przy niskiej zgodności (np. 1/6
+          // modeli) średnia po wszystkich 6 bywa < 0.05mm i przy zaokrągleniu
+          // do 1 miejsca pokazywałaby mylące "0 mm" tuż obok "1/6 modeli".
+          precipMean: perModelPrecip.length ? round(mean(perModelPrecip), 2) : null,
+        });
+      }
     }
     if (!sample.temp.length) continue;
     days.push({
@@ -340,10 +365,22 @@ function renderCheckpoints(perCheckpointDays, dayIndex) {
         <div class="cp-temp">
           <div class="cp-hourly-wrap">
             <div class="cp-hourly">
-              ${d.hourly.map((h) => `<div class="hr-chip">
+              ${d.hourly.map((h) => {
+                const rainPct = h.precipProb != null ? Math.round(h.precipProb * 100) : null;
+                // Opacity floor na 0.35, zeby slaby sygnal (1/6 modeli) byl
+                // widoczny, ale nie tak krzykliwy jak pewny deszcz (6/6).
+                // Suche godziny (0%) nie rezerwuja miejsca -- reszta chipa
+                // zostaje wyrownana do gornej krawedzi (align-items:center w .hr-chip).
+                const rainOpacity = rainPct ? Math.max(0.35, h.precipProb) : 0;
+                const rainTitle = rainPct
+                  ? `deszcz: ${h.wetModels}/${h.modelCount} modeli, śr. ${h.precipMean} mm`
+                  : "deszcz: brak sygnału w modelach";
+                return `<div class="hr-chip" title="${h.hour}:00 · ${h.temp}°C · ${rainTitle}">
                 <b style="color:${tempColor(h.temp)}">${h.temp}°</b>
+                <span class="hr-rain" style="opacity:${rainOpacity}">${rainPct ? rainPct + "%" : ""}</span>
                 <small>${h.hour}</small>
-              </div>`).join("")}
+              </div>`;
+              }).join("")}
             </div>
           </div>
           <div class="cp-temp-meta">
