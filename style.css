@@ -185,6 +185,18 @@ a { color: var(--cold); }
   font-size: 9px;
   text-anchor: middle;
 }
+.profile-rain {
+  fill: var(--cold);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  /* Wieksze niz .profile-ele (9px) -- SVG skaluje sie do 100% szerokosci
+     kontenera, wiec na telefonie 9 jednostek viewBox rendrowaloby sie jako
+     ~4px, nieczytelne (ten sam blad co pierwsza wersja .hr-rain). Krotki
+     tekst ("5h", nie "5h deszcz") daje miejsce na wiekszy rozmiar bez
+     zderzenia z sasiednim punktem. */
+  font-size: 16px;
+  text-anchor: middle;
+}
 
 /* ── Wybór dnia ─────────────────────────────────────────────────────── */
 .days-wrap { padding: 10px 16px 0; }
@@ -370,18 +382,20 @@ a { color: var(--cold); }
   font-size: 10px;
 }
 /* Konsensus deszczu per godzina: % modeli zgadzajacych sie na mierzalny
-   opad (>0.1mm). Opacity zamiast pokazywania/ukrywania -- dzieki temu
+   opad (>0.1mm), NIE ilosc w mm (ta jest w tytule chipa i w cp-stats jako
+   suma dzienna). Opacity zamiast pokazywania/ukrywania -- dzieki temu
    kazdy chip ma ta sama wysokosc (brak przeskakiwania layoutu miedzy
    suchymi i mokrymi godzinami), a oko samo wylapuje wzorce w rzedzie.
    font-weight 700 (nie 500) i podloga opacity 0.6 (nie 0.35, patrz app.js)
-   -- pierwsza wersja byla w praktyce nieczytelna. */
+   -- pierwsza wersja byla w praktyce nieczytelna. 13px (nie 11px) -- wciaz
+   za male na pierwszy rzut oka po zmianie opacity/wagi. */
 .hr-rain {
   font-family: var(--font-mono);
   color: var(--cold);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
-  min-height: 13px;
-  line-height: 13px;
+  min-height: 15px;
+  line-height: 15px;
 }
 .cp-temp-meta {
   display: flex;

@@ -298,15 +298,19 @@ function renderStations(stations) {
 // poziom ryzyka danego dnia, duza liczba nad kropka = temperatura (nie
 // wysokosc), wysokosc zostaje jako mala, druga linia podpisu.
 function renderProfile(perCheckpointDays, dayIndex) {
-  const w = 800, h = 168, pad = 26;
+  // h podniesione z 168 na 182 -- druga linia podpisu (godziny deszczu pod
+  // wysokością) potrzebuje własnego miejsca, nie mieści się bez zderzenia
+  // z etykietą wysokości. Strona jest mobile-first bez hovera (telefon), więc
+  // to MUSI być zawsze widoczny tekst, nie tylko <title>/tooltip.
+  const w = 800, h = 182, pad = 26;
   const minEle = Math.min(...CHECKPOINTS.map((c) => c.ele));
   const maxEle = Math.max(...CHECKPOINTS.map((c) => c.ele));
   const x = (i) => pad + (i / (CHECKPOINTS.length - 1)) * (w - pad * 2);
-  const y = (ele) => h - 40 - ((ele - minEle) / (maxEle - minEle)) * (h - 40 - pad);
+  const y = (ele) => h - 52 - ((ele - minEle) / (maxEle - minEle)) * (h - 52 - pad);
 
   const pts = CHECKPOINTS.map((c, i) => [x(i), y(c.ele)]);
   const line = pts.map((p) => p.join(",")).join(" ");
-  const area = `${pad},${h - 40} ${line} ${w - pad},${h - 40}`;
+  const area = `${pad},${h - 52} ${line} ${w - pad},${h - 52}`;
 
   const dots = CHECKPOINTS.map((c, i) => {
     const days = perCheckpointDays[c.id];
@@ -314,18 +318,33 @@ function renderProfile(perCheckpointDays, dayIndex) {
     const [cx, cy] = pts[i];
     const dotColor = d ? LEVEL_VAR[d.assess.level] : "var(--muted)";
     const tColor = d ? tempColor(d.tempMedian) : "var(--muted)";
+    // Godziny (z 17, 6–22) z większością modeli (≥3/6) zgadzającą się na
+    // opad -- ta sama metryka co odznaka na daytabie, ale tu lokalnie dla
+    // TEGO punktu na grzbiecie, nie mediana po wszystkich 9. Pokazane tylko
+    // gdy >0, żeby suche punkty nie dostawały pustej niebieskiej liczby.
+    const rainH = d?.rainMajorityHours;
+    // Sam tekst "Xh", bez slowa "deszcz" -- SVG skaluje sie do 100% szerokosci
+    // kontenera (preserveAspectRatio="none"), wiec na waskim telefonie
+    // (~390px vs viewBox 800) kazda jednostka viewBox to ok. 0.46px realnego
+    // ekranu. Krotszy tekst = mozna podbic font-size bez ryzyka zderzenia
+    // z sasiednim punktem (9 punktow na 800 jednostek = ~93 jedn. odstepu).
+    const rainLabel = rainH > 0
+      ? `<text x="${cx}" y="${h - 16}" class="profile-rain">${rainH}h</text>`
+      : "";
+    const rainAria = rainH > 0 ? `, deszcz ${rainH} z 17 godz.` : "";
     return `<g class="profile-pt" data-target="cp-${c.id}" tabindex="0" role="button"
-              aria-label="Przewiń do ${c.name}, ${c.ele} m, ${d ? d.tempMedian + '°C, mediana z godz. 6–22' : 'brak danych'}">
-      <title>${c.name}: ${d ? d.tempMedian + '°C (mediana z godz. 6–22, 6 modeli)' : 'brak danych'}</title>
+              aria-label="Przewiń do ${c.name}, ${c.ele} m, ${d ? d.tempMedian + '°C, mediana z godz. 6–22' + rainAria : 'brak danych'}">
+      <title>${c.name}: ${d ? d.tempMedian + '°C (mediana z godz. 6–22, 6 modeli)' + rainAria : 'brak danych'}</title>
       <circle cx="${cx}" cy="${cy}" r="16" fill="transparent"/>
       <text x="${cx}" y="${cy - 12}" class="profile-temp" fill="${tColor}">${d ? d.tempMedian + "°" : "—"}</text>
       <circle cx="${cx}" cy="${cy}" r="5" fill="${dotColor}" stroke="var(--bg)" stroke-width="1.5"/>
-      <text x="${cx}" y="${h - 22}" class="profile-ele">${c.ele} m</text>
+      <text x="${cx}" y="${h - 30}" class="profile-ele">${c.ele} m</text>
+      ${rainLabel}
     </g>`;
   }).join("");
 
   $("#profile").innerHTML = `
-    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="Profil wysokościowy szlaku z medianą temperatury">
+    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="Profil wysokościowy szlaku z medianą temperatury i konsensusem deszczu">
       <polygon class="profile-area" points="${area}"/>
       <polyline class="profile-line" points="${line}"/>
       ${dots}
