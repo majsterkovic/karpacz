@@ -57,6 +57,14 @@ Konsekwencja: serwer (`nginx:alpine`) serwuje wyłącznie pliki statyczne.
   ta druga wciąż jest w `cp-stats` jako agregat dzienny. Świadomie osobno:
   "4/6 modeli zgadza się, że o 14:00 będzie mokro" mówi coś innego niż
   "dziś spadnie 3 mm", zwłaszcza przy planowaniu, kiedy wyjść na szlak.
+- **Odznaka deszczu na karcie dnia** (`daytab`): widoczna w pasku wyboru
+  dnia, zanim jeszcze się w niego wejdzie. Liczy godziny (z 17, 6–22),
+  w których **większość** modeli (≥3/6, surowszy próg niż "przynajmniej
+  jeden" użyty w godzinnym pasku) zgadza się na opad — mediana po
+  wszystkich 9 checkpointach. ≥4h → "Uwaga", ≥8h → "Ryzyko". Progi
+  skalibrowane na realnej prognozie: dzień z rozrzuconym, niepewnym
+  opadem (0 godzin z większością) nie dostaje odznaki, żeby nie
+  spowszedniała.
 
 ## Punkty kontrolne
 

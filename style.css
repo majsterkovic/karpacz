@@ -207,7 +207,10 @@ a { color: var(--cold); }
   font-size: 12px;
   display: flex;
   gap: 6px;
-  align-items: baseline;
+  /* center, nie baseline -- baseline pasowal do samego dow+date (tekst tej
+     samej wielkosci), ale odznaka .daytab-rain to zaokraglona pigulka z
+     paddingiem, ktora przy baseline wisiala nierowno wzgledem tekstu. */
+  align-items: center;
   cursor: pointer;
 }
 .daytab-dow { text-transform: capitalize; }
@@ -216,6 +219,25 @@ a { color: var(--cold); }
   border-color: var(--trail);
   color: var(--ink);
   font-weight: 500;
+}
+/* Odznaka "duzo bedzie padac" na karcie dnia -- widoczna w pasku dni ZANIM
+   ktokolwiek kliknie, wiec nie trzeba otwierac kazdego dnia z osobna zeby
+   sie zorientowac. Dwa poziomy, ten sam kolor co assess()/.cp-badge (warn/
+   bad), zeby siatka kolorow ryzyka na calej stronie byla spojna. */
+.daytab-rain {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.daytab-rain--1 { background: color-mix(in srgb, var(--warn) 24%, transparent); color: var(--warn); }
+.daytab-rain--2 { background: color-mix(in srgb, var(--bad) 28%, transparent); color: var(--bad); }
+/* Na aktywnej (czerwonej) karcie kolorowe tlo odznaki ginie w tle -- jasny
+   overlay zamiast koloru poziomu, priorytet ma to, ze karta jest wybrana. */
+.daytab.is-active .daytab-rain {
+  background: color-mix(in srgb, var(--ink) 28%, transparent);
+  color: var(--ink);
 }
 .day-summary {
   margin: 10px 2px 0;
@@ -350,14 +372,16 @@ a { color: var(--cold); }
 /* Konsensus deszczu per godzina: % modeli zgadzajacych sie na mierzalny
    opad (>0.1mm). Opacity zamiast pokazywania/ukrywania -- dzieki temu
    kazdy chip ma ta sama wysokosc (brak przeskakiwania layoutu miedzy
-   suchymi i mokrymi godzinami), a oko samo wylapuje wzorce w rzedzie. */
+   suchymi i mokrymi godzinami), a oko samo wylapuje wzorce w rzedzie.
+   font-weight 700 (nie 500) i podloga opacity 0.6 (nie 0.35, patrz app.js)
+   -- pierwsza wersja byla w praktyce nieczytelna. */
 .hr-rain {
   font-family: var(--font-mono);
   color: var(--cold);
-  font-size: 10px;
-  font-weight: 500;
-  min-height: 12px;
-  line-height: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  min-height: 13px;
+  line-height: 13px;
 }
 .cp-temp-meta {
   display: flex;

@@ -79,6 +79,26 @@ function assess({ windAvg, gustMax, precipSum, fogHours }) {
   return { level, label: level === 2 ? "Ryzyko" : "Uwaga", detail: reasons.map((r) => r.text).join(" · ") };
 }
 
+// Odznaka na karcie dnia (daytab) -- sygnał ZANIM ktoś w ogóle otworzy dany
+// dzień, że warto się przygotować na deszcz. Mediana rainMajorityHours po
+// wszystkich 9 checkpointach (odporna na jeden odstający punkt na grzbiecie,
+// ten sam wzorzec co tempMedian). Progi skalibrowane na rzeczywistej
+// prognozie z sierpnia 2026: dzień z rozrzuconym niepewnym opadem (0 godzin
+// z większością modeli) nie dostaje odznaki; dzień z krótką ale intensywną
+// ulewą (mediana 5h) i dzień z długim, umiarkowanym opadem (mediana 9h) --
+// oba realnie warte ostrzeżenia -- dostają, w dwóch poziomach.
+function dayRainBadge(perCheckpointDays, dayIndex) {
+  const hours = CHECKPOINTS.map((c) => {
+    const days = perCheckpointDays[c.id];
+    return days[Math.min(dayIndex, days.length - 1)]?.rainMajorityHours;
+  }).filter((v) => v != null);
+  if (!hours.length) return null;
+  const h = median(hours);
+  if (h >= 8) return { level: 2, hours: Math.round(h) };
+  if (h >= 4) return { level: 1, hours: Math.round(h) };
+  return null;
+}
+
 async function fetchEnsemble() {
   const lat = CHECKPOINTS.map((c) => c.lat).join(",");
   const lon = CHECKPOINTS.map((c) => c.lon).join(",");
@@ -192,8 +212,14 @@ function buildDays(hourly) {
       }
     }
     if (!sample.temp.length) continue;
+    // Godziny, w których WIĘKSZOŚĆ modeli (≥3/6) zgadza się na opad -- surowszy
+    // próg niż "przynajmniej jeden model" (wetModels>0) użyty w .hr-chip, bo
+    // to zasila odznakę dnia na daytabie: ma znaczyć "naprawdę będzie padać",
+    // nie "jeden model coś tam podejrzewa". Użyte w dayRainBadge() niżej.
+    const rainMajorityHours = hourRows.filter((h) => h.modelCount && h.wetModels / h.modelCount >= 0.5).length;
     days.push({
       date,
+      rainMajorityHours,
       // Mediana zamiast średniej dla nagłówkowej liczby na wykresie profilu:
       // odporna na pojedynczą godzinę/model odstający od reszty (np. jeden
       // model przewidujący nagły upał o 14:00), lepiej oddaje "typową"
@@ -312,12 +338,20 @@ function renderProfile(perCheckpointDays, dayIndex) {
   });
 }
 
-function renderDayTabs(dates, active, onSelect) {
+function renderDayTabs(dates, active, onSelect, rainBadges = []) {
   $("#dayTabs").innerHTML = dates.map((d, i) => {
     const dt = new Date(d + "T12:00:00");
+    const b = rainBadges[i];
+    // Widoczne od razu w pasku dni, zanim ktoś kliknie -- nie trzeba wchodzić
+    // w każdy dzień z osobna, żeby zauważyć "tu będzie lało". Konkretna
+    // liczba godzin, nie samo słowo "deszcz" -- ten sam wzorzec co assess().
+    const badge = b
+      ? `<span class="daytab-rain daytab-rain--${b.level}" title="Mediana ${b.hours} z 17 godz. (6:00–22:00) z większością modeli (≥3/6) zgadzającą się na opad">deszcz ${b.hours}h</span>`
+      : "";
     return `<button class="daytab ${i === active ? "is-active" : ""}" data-i="${i}">
       <span class="daytab-dow">${fmtDate(dt).split(" ")[0]}</span>
       <span class="daytab-date">${fmtDate(dt).split(" ")[1]}</span>
+      ${badge}
     </button>`;
   }).join("");
   $$(".daytab", $("#dayTabs")).forEach((btn) =>
@@ -367,11 +401,15 @@ function renderCheckpoints(perCheckpointDays, dayIndex) {
             <div class="cp-hourly">
               ${d.hourly.map((h) => {
                 const rainPct = h.precipProb != null ? Math.round(h.precipProb * 100) : null;
-                // Opacity floor na 0.35, zeby slaby sygnal (1/6 modeli) byl
-                // widoczny, ale nie tak krzykliwy jak pewny deszcz (6/6).
+                // Floor podniesiony z 0.35 na 0.6 -- pierwsza wersja (0.35, w
+                // 10px szaroniebieskim tekscie) okazala sie w praniu praktycznie
+                // niewidoczna nawet przy realnym sygnale (zgloszenie: "nie widze
+                // godzinowych informacji o deszczu"). 6/6 modeli nadal wybija sie
+                // pelna kryjacoscia, ale roznica miedzy "slabym" a "silnym"
+                // sygnalem juz nie schodzi ponizej progu czytelnosci.
                 // Suche godziny (0%) nie rezerwuja miejsca -- reszta chipa
                 // zostaje wyrownana do gornej krawedzi (align-items:center w .hr-chip).
-                const rainOpacity = rainPct ? Math.max(0.35, h.precipProb) : 0;
+                const rainOpacity = rainPct ? Math.max(0.6, h.precipProb) : 0;
                 const rainTitle = rainPct
                   ? `deszcz: ${h.wetModels}/${h.modelCount} modeli, śr. ${h.precipMean} mm`
                   : "deszcz: brak sygnału w modelach";
@@ -418,6 +456,7 @@ async function init() {
     CHECKPOINTS.forEach((c, i) => { perCheckpointDays[c.id] = buildDays(ensemble[i].hourly); });
 
     const dates = perCheckpointDays[CHECKPOINTS[0].id].map((d) => d.date);
+    const rainBadges = dates.map((_, i) => dayRainBadge(perCheckpointDays, i));
     let activeDay = 0;
     const selectDay = (i) => {
       activeDay = i;
@@ -426,7 +465,7 @@ async function init() {
       renderSummary(perCheckpointDays, activeDay);
       renderCheckpoints(perCheckpointDays, activeDay);
     };
-    renderDayTabs(dates, activeDay, selectDay);
+    renderDayTabs(dates, activeDay, selectDay, rainBadges);
     selectDay(activeDay);
 
     status.textContent = "";
